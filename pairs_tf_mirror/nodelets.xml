@@ -1,5 +1,0 @@
-<library path="lib/libPairsTfMirror_TfMirror">
-  <class name="pairs_tf_mirror/TfMirror" type="pairs_tf_mirror::TfMirror" base_class_type="nodelet::Nodelet">
-    <description>TfMirror nodelet</description>
-  </class>
-</library>

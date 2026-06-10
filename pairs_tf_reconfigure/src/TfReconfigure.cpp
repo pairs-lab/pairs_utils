@@ -3,48 +3,77 @@
 namespace pairs_tf_reconfigure
 {
 
-/* onInit() //{ */
+/* TfReconfigure() //{ */
 
-void TfReconfigure::onInit() {
+TfReconfigure::TfReconfigure(rclcpp::NodeOptions options) : Node("TfReconfigure", options) {
+  node_  = this_node_ptr();
+  clock_ = node_->get_clock();
 
-  ROS_INFO("[TfReconfigure]: Initializing");
-  ros::NodeHandle nh_ = nodelet::Nodelet::getMTPrivateNodeHandle();
+  RCLCPP_INFO(node_->get_logger(), "Initializing");
+  pairs_lib::ParamLoader pl(node_);
 
-  ros::Time::waitForValid();
+  pairs_lib::TimerHandlerOptions timer_opts;
+  timer_opts.node      = node_;
+  timer_opts.autostart = true;
 
-  pairs_lib::ParamLoader pl(nh_);
+  timer_tf_ = std::make_shared<TimerType>(timer_opts, rclcpp::Rate(rate_timer_tf_, clock_), std::bind(&TfReconfigure::timerTf, this));
 
-  pl.loadParam("frame_parent", frame_parent_, std::string("parent"));
-  pl.loadParam("frame_child", frame_child_, std::string("child"));
-  pl.loadParam("frame_grandchild", frame_grandchild_, std::string("g_child"));
-  pl.loadParam("frame_greatgrandchild", frame_greatgrandchild_, std::string("g_g_child"));
+  t1_transform_.transform.translation.x = 0.0;
+  t1_transform_.transform.translation.y = 0.0;
+  t1_transform_.transform.translation.z = 0.0;
+  tf2::convert(tf2::Quaternion(0.0, 0.0, 0.0, 1.0), t1_transform_.transform.rotation);
 
+  t2_transform_.transform.translation.x = 0.0;
+  t2_transform_.transform.translation.y = 0.0;
+  t2_transform_.transform.translation.z = 0.0;
+  tf2::convert(tf2::Quaternion(0.0, 0.0, 0.0, 1.0), t2_transform_.transform.rotation);
 
-  timer_tf_ = nh_.createTimer(ros::Rate(rate_timer_tf_), &TfReconfigure::timerTf, this);
-
-  t1_transform_.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
-  t1_transform_.setRotation(tf::Quaternion(0.0, 0.0, 0.0, 1.0));
-
-  t2_transform_.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
-  t2_transform_.setRotation(tf::Quaternion(0.0, 0.0, 0.0, 1.0));
-
-  t3_transform_.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
-  t3_transform_.setRotation(tf::Quaternion(0.0, 0.0, 0.0, 1.0));
+  t3_transform_.transform.translation.x = 0.0;
+  t3_transform_.transform.translation.y = 0.0;
+  t3_transform_.transform.translation.z = 0.0;
+  tf2::convert(tf2::Quaternion(0.0, 0.0, 0.0, 1.0), t3_transform_.transform.rotation);
 
   // --------------------------------------------------------------
   // |                     dynamic reconfigure                    |
   // --------------------------------------------------------------
 
-  reconfigure_server_.reset(new dynamic_reconfigure::Server<pairs_tf_reconfigure::tfConfig>(mutex_reconfigure_, nh_));
-  dynamic_reconfigure::Server<pairs_tf_reconfigure::tfConfig>::CallbackType f = boost::bind(&TfReconfigure::callbackReconfigure, this, _1, _2);
-  reconfigure_server_->setCallback(f);
+  reconfigure_server_ = std::make_shared<pairs_lib::DynparamMgr>(node_, mutex_reconfigure_);
+  // reconfigure_server_->get_param_provider().copyYamls(pl.getParamProvider());
 
-  transformer_ = std::make_unique<pairs_lib::Transformer>("pairs_tf_reconfigure");
+  // Create callback wrapper with matching signature
+  std::function<void(const double &)> callback = std::bind(&TfReconfigure::callbackReconfigure, this, std::placeholders::_1);
+
+  // child
+  reconfigure_server_->register_param("child.o_pitch", &drs_params_.child_o_pitch, 0.0, pairs_lib::DynparamMgr::range_t<double>(-3.141, 3.141), callback);
+  reconfigure_server_->register_param("child.o_roll", &drs_params_.child_o_roll, 0.0, pairs_lib::DynparamMgr::range_t<double>(-3.141, 3.141), callback);
+  reconfigure_server_->register_param("child.o_yaw", &drs_params_.child_o_yaw, 0.0, pairs_lib::DynparamMgr::range_t<double>(-3.141, 3.141), callback);
+  reconfigure_server_->register_param("child.x", &drs_params_.child_x, 0.0, pairs_lib::DynparamMgr::range_t<double>(-100.0, 100.0), callback);
+  reconfigure_server_->register_param("child.y", &drs_params_.child_y, 0.0, pairs_lib::DynparamMgr::range_t<double>(-100.0, 100.0), callback);
+  reconfigure_server_->register_param("child.z", &drs_params_.child_z, 0.0, pairs_lib::DynparamMgr::range_t<double>(-100.0, 100.0), callback);
+
+  // g_child
+  reconfigure_server_->register_param("g_child.o_pitch", &drs_params_.g_child_o_pitch, 0.0, pairs_lib::DynparamMgr::range_t<double>(-3.141, 3.141), callback);
+  reconfigure_server_->register_param("g_child.o_roll", &drs_params_.g_child_o_roll, 0.0, pairs_lib::DynparamMgr::range_t<double>(-3.141, 3.141), callback);
+  reconfigure_server_->register_param("g_child.o_yaw", &drs_params_.g_child_o_yaw, 0.0, pairs_lib::DynparamMgr::range_t<double>(-3.141, 3.141), callback);
+  reconfigure_server_->register_param("g_child.x", &drs_params_.g_child_x, 0.0, pairs_lib::DynparamMgr::range_t<double>(-100.0, 100.0), callback);
+  reconfigure_server_->register_param("g_child.y", &drs_params_.g_child_y, 0.0, pairs_lib::DynparamMgr::range_t<double>(-100.0, 100.0), callback);
+  reconfigure_server_->register_param("g_child.z", &drs_params_.g_child_z, 0.0, pairs_lib::DynparamMgr::range_t<double>(-100.0, 100.0), callback);
+
+  // g_g_child
+  reconfigure_server_->register_param("g_g_child.o_pitch", &drs_params_.g_g_child_o_pitch, 0.0, pairs_lib::DynparamMgr::range_t<double>(-3.141, 3.141), callback);
+  reconfigure_server_->register_param("g_g_child.o_roll", &drs_params_.g_g_child_o_roll, 0.0, pairs_lib::DynparamMgr::range_t<double>(-3.141, 3.141), callback);
+  reconfigure_server_->register_param("g_g_child.o_yaw", &drs_params_.g_g_child_o_yaw, 0.0, pairs_lib::DynparamMgr::range_t<double>(-3.141, 3.141), callback);
+  reconfigure_server_->register_param("g_g_child.x", &drs_params_.g_g_child_x, 0.0, pairs_lib::DynparamMgr::range_t<double>(-100.0, 100.0), callback);
+  reconfigure_server_->register_param("g_g_child.y", &drs_params_.g_g_child_y, 0.0, pairs_lib::DynparamMgr::range_t<double>(-100.0, 100.0), callback);
+  reconfigure_server_->register_param("g_g_child.z", &drs_params_.g_g_child_z, 0.0, pairs_lib::DynparamMgr::range_t<double>(-100.0, 100.0), callback);
+
+  transformer_ = std::make_unique<pairs_lib::Transformer>(node_);
   transformer_->retryLookupNewest(true);
 
+  br_             = std::make_unique<tf2_ros::TransformBroadcaster>(node_);
   is_initialized_ = true;
 
-  ROS_INFO("[TfReconfigure]: initialized");
+  RCLCPP_INFO(node_->get_logger(), "initialized");
 }
 
 //}
@@ -52,7 +81,6 @@ void TfReconfigure::onInit() {
 /* broadcastTransforms() //{ */
 
 void TfReconfigure::broadcastTransforms() {
-
   if (!is_initialized_) {
     return;
   }
@@ -60,35 +88,53 @@ void TfReconfigure::broadcastTransforms() {
   if (modified_g_g_child_) {
     std::scoped_lock lock(mutex_tf_);
 
-    ros::Time br_time = ros::Time::now();
-    br_.sendTransform(tf::StampedTransform(t1_transform_, br_time, frame_parent_, frame_child_));
-    listener_.waitForTransform(frame_parent_, frame_child_, br_time, ros::Duration(0.5));
+    geometry_msgs::msg::TransformStamped ts1;
+    ts1.header.stamp    = clock_->now();
+    ts1.header.frame_id = frame_parent_;
+    ts1.child_frame_id  = frame_child_;
+    ts1.transform       = t1_transform_.transform;
+    br_->sendTransform(ts1);
 
-    br_time = ros::Time::now();
-    br_.sendTransform(tf::StampedTransform(t2_transform_, br_time, frame_child_, frame_grandchild_));
-    listener_.waitForTransform(frame_child_, frame_grandchild_, br_time, ros::Duration(0.5));
+    geometry_msgs::msg::TransformStamped ts2;
+    ts2.header.stamp    = clock_->now();
+    ts2.header.frame_id = frame_child_;
+    ts2.child_frame_id  = frame_grandchild_;
+    ts2.transform       = t2_transform_.transform;
+    br_->sendTransform(ts2);
 
-    br_time = ros::Time::now();
-    br_.sendTransform(tf::StampedTransform(t3_transform_, br_time, frame_grandchild_, frame_greatgrandchild_));
-    listener_.waitForTransform(frame_grandchild_, frame_greatgrandchild_, br_time, ros::Duration(0.5));
+    geometry_msgs::msg::TransformStamped ts3;
+    ts3.header.stamp    = clock_->now();
+    ts3.header.frame_id = frame_grandchild_;
+    ts3.child_frame_id  = frame_greatgrandchild_;
+    ts3.transform       = t3_transform_.transform;
+    br_->sendTransform(ts3);
 
   } else if (modified_g_child_) {
     std::scoped_lock lock(mutex_tf_);
 
-    ros::Time br_time = ros::Time::now();
-    br_.sendTransform(tf::StampedTransform(t1_transform_, br_time, frame_parent_, frame_child_));
-    listener_.waitForTransform(frame_parent_, frame_child_, br_time, ros::Duration(0.5));
+    geometry_msgs::msg::TransformStamped ts1;
+    ts1.header.stamp    = clock_->now();
+    ts1.header.frame_id = frame_parent_;
+    ts1.child_frame_id  = frame_child_;
+    ts1.transform       = t1_transform_.transform;
+    br_->sendTransform(ts1);
 
-    br_time = ros::Time::now();
-    br_.sendTransform(tf::StampedTransform(t2_transform_, br_time, frame_child_, frame_grandchild_));
-    listener_.waitForTransform(frame_child_, frame_grandchild_, br_time, ros::Duration(0.5));
+    geometry_msgs::msg::TransformStamped ts2;
+    ts2.header.stamp    = clock_->now();
+    ts2.header.frame_id = frame_child_;
+    ts2.child_frame_id  = frame_grandchild_;
+    ts2.transform       = t2_transform_.transform;
+    br_->sendTransform(ts2);
 
   } else {
     std::scoped_lock lock(mutex_tf_);
 
-    ros::Time br_time = ros::Time::now();
-    br_.sendTransform(tf::StampedTransform(t1_transform_, br_time, frame_parent_, frame_child_));
-    listener_.waitForTransform(frame_parent_, frame_child_, br_time, ros::Duration(0.5));
+    geometry_msgs::msg::TransformStamped ts1;
+    ts1.header.stamp    = clock_->now();
+    ts1.header.frame_id = frame_parent_;
+    ts1.child_frame_id  = frame_child_;
+    ts1.transform       = t1_transform_.transform;
+    br_->sendTransform(ts1);
   }
 }
 
@@ -96,87 +142,105 @@ void TfReconfigure::broadcastTransforms() {
 
 /* timerTf() //{ */
 
-void TfReconfigure::timerTf(const ros::TimerEvent& event) {
-
+void TfReconfigure::timerTf() {
   if (!is_initialized_)
     return;
-  broadcastTransforms();
+
+  if (params_dirty_) {
+    auto drs_params = pairs_lib::get_mutexed(mutex_reconfigure_, drs_params_);
+
+    modified_g_child_ |= (drs_params.g_child_o_roll != 0.0) || (drs_params.g_child_o_pitch != 0.0) || (drs_params.g_child_o_yaw != 0.0) ||
+                         (drs_params.g_child_x != 0.0) || (drs_params.g_child_y != 0.0) || (drs_params.g_child_z != 0.0);
+
+    modified_g_g_child_ |= (drs_params.g_g_child_o_roll != 0.0) || (drs_params.g_g_child_o_pitch != 0.0) || (drs_params.g_g_child_o_yaw != 0.0) ||
+                           (drs_params.g_g_child_x != 0.0) || (drs_params.g_g_child_y != 0.0) || (drs_params.g_g_child_z != 0.0);
+
+    tf2::Quaternion q;
+    q.setRPY(drs_params.child_o_roll, drs_params.child_o_pitch, drs_params.child_o_yaw);
+    q.normalize();
+
+    tf2::Quaternion q2;
+    q2.setRPY(drs_params.g_child_o_roll, drs_params.g_child_o_pitch, drs_params.g_child_o_yaw);
+    q2.normalize();
+
+    tf2::Quaternion q3;
+    q3.setRPY(drs_params.g_g_child_o_roll, drs_params.g_g_child_o_pitch, drs_params.g_g_child_o_yaw);
+    q3.normalize();
+
+    /* RCLCPP_INFO(node_->get_logger(), "quaternion: x: %f y: %f z: %f w: %f", q.getX(), q.getY(), q.getZ(), q.getW()); */
+
+    {
+      std::scoped_lock lock(mutex_tf_);
+      t1_transform_.transform.translation.x = drs_params.child_x;
+      t1_transform_.transform.translation.y = drs_params.child_y;
+      t1_transform_.transform.translation.z = drs_params.child_z;
+      tf2::convert(q, t1_transform_.transform.rotation);
+
+      t2_transform_.transform.translation.x = drs_params.g_child_x;
+      t2_transform_.transform.translation.y = drs_params.g_child_y;
+      t2_transform_.transform.translation.z = drs_params.g_child_z;
+      tf2::convert(q2, t2_transform_.transform.rotation);
+
+      t3_transform_.transform.translation.x = drs_params.g_g_child_x;
+      t3_transform_.transform.translation.y = drs_params.g_g_child_y;
+      t3_transform_.transform.translation.z = drs_params.g_g_child_z;
+      tf2::convert(q3, t3_transform_.transform.rotation);
+    }
+
+    broadcastTransforms();
+    broadcastTransforms();
+
+    geometry_msgs::msg::TransformStamped tf;
+
+    std::optional<geometry_msgs::msg::TransformStamped> ret;
+
+    if (modified_g_g_child_) {
+      ret = transformer_->getTransform(frame_greatgrandchild_, frame_parent_, clock_->now());
+    } else if (modified_g_child_) {
+      ret = transformer_->getTransform(frame_grandchild_, frame_parent_, clock_->now());
+    } else {
+      ret = transformer_->getTransform(frame_child_, frame_parent_, clock_->now());
+    }
+
+    if (ret) {
+      tf = ret.value();
+    } else {
+      RCLCPP_ERROR_STREAM(node_->get_logger(), "Error in TF transforming!");
+    }
+
+    RCLCPP_INFO_STREAM(node_->get_logger(), " \n\n\n\n\n\n\n\n -------------------------------------------- \n");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "TF:\n" << tf.transform);
+
+    double          sim_yaw, sim_pitch, sim_roll;
+    tf2::Quaternion quaternion;
+    tf2::convert(tf.transform.rotation, quaternion);
+    tf2::Matrix3x3 m(quaternion);
+
+    m.getRPY(sim_roll, sim_pitch, sim_yaw);
+
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Angles for gazebo:  R: " << sim_roll << "  P: " << sim_pitch << "  Y: " << sim_yaw);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Angles for tf_static:   " << sim_yaw << " " << sim_pitch << " " << sim_roll);
+
+    params_dirty_ = false;
+  } else
+    broadcastTransforms();
 }
 
 //}
 
 /* //{ callbackReconfigure() */
-void TfReconfigure::callbackReconfigure([[maybe_unused]] pairs_tf_reconfigure::tfConfig& config, [[maybe_unused]] uint32_t level) {
 
+void TfReconfigure::callbackReconfigure([[maybe_unused]] const double &value) {
   if (!is_initialized_) {
     return;
   }
 
-  modified_g_child_ |= (config.roll2 != 0.0) | (config.pitch2 != 0.0) | (config.yaw2 != 0.0) | (config.x2 != 0.0) | (config.y2 != 0.0) | (config.z2 != 0.0);
-  modified_g_g_child_ |= (config.roll3 != 0.0) | (config.pitch3 != 0.0) | (config.yaw3 != 0.0) | (config.x3 != 0.0) | (config.y3 != 0.0) | (config.z3 != 0.0);
-
-  tf::Quaternion q;
-  q.setRPY(config.roll, config.pitch, config.yaw);
-  q.normalize();
-
-  tf::Quaternion q2;
-  q2.setRPY(config.roll2, config.pitch2, config.yaw2);
-  q2.normalize();
-
-  tf::Quaternion q3;
-  q3.setRPY(config.roll3, config.pitch3, config.yaw3);
-  q3.normalize();
-
-  /* ROS_INFO("[TfReconfigure]: quaternion: x: %f y: %f z: %f w: %f", q.getX(), q.getY(), q.getZ(), q.getW()); */
-
-  {
-    std::scoped_lock lock(mutex_tf_);
-    t1_transform_.setOrigin(tf::Vector3(config.x, config.y, config.z));
-    t1_transform_.setRotation(q);
-
-    t2_transform_.setOrigin(tf::Vector3(config.x2, config.y2, config.z2));
-    t2_transform_.setRotation(q2);
-
-    t3_transform_.setOrigin(tf::Vector3(config.x3, config.y3, config.z3));
-    t3_transform_.setRotation(q3);
-  }
-
-  broadcastTransforms();
-  broadcastTransforms();
-
-  geometry_msgs::TransformStamped tf;
-
-  std::optional<geometry_msgs::TransformStamped> ret;
-
-  if (modified_g_g_child_) {
-    ret = transformer_->getTransform(frame_greatgrandchild_, frame_parent_, ros::Time::now());
-  } else if (modified_g_child_) {
-    ret = transformer_->getTransform(frame_grandchild_, frame_parent_, ros::Time::now());
-  } else {
-    ret = transformer_->getTransform(frame_child_, frame_parent_, ros::Time::now());
-  }
-
-  if (ret) {
-    tf = ret.value();
-  } else {
-    ROS_ERROR_STREAM("[Tf Reconfigure]: Error in TF transforming!");
-  }
-  ROS_INFO_STREAM(" \n\n\n\n\n\n\n\n -------------------------------------------- \n");
-  ROS_INFO_STREAM("TF:\n" << tf.transform);
-
-  double         sim_yaw, sim_pitch, sim_roll;
-  tf::Quaternion quaternion;
-  quaternionMsgToTF(tf.transform.rotation, quaternion);
-  tf::Matrix3x3 m(quaternion);
-
-  m.getRPY(sim_roll, sim_pitch, sim_yaw);
-
-  ROS_INFO_STREAM("Angles for gazebo:  R: " << sim_roll << "  P: " << sim_pitch << "  Y: " << sim_yaw);
-  ROS_INFO_STREAM("Angles for tf_static:   " << sim_yaw << " " << sim_pitch << " " << sim_roll);
+  params_dirty_ = true;
 }
+
 //}
 
-}  // namespace pairs_tf_reconfigure
+} // namespace pairs_tf_reconfigure
 
-#include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(pairs_tf_reconfigure::TfReconfigure, nodelet::Nodelet)
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(pairs_tf_reconfigure::TfReconfigure)

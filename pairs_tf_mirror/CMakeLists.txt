@@ -1,68 +1,82 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.20)
 project(pairs_tf_mirror)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CATKIN_DEPENDENCIES
-  cmake_modules
-  message_runtime
+# 1 == use rclcpp::Timer implementation
+# 0 == use PAIRS's thread timer implementation
+set(USE_ROS_TIMER 0)
+
+if(${USE_ROS_TIMER})
+  MESSAGE(WARNING "[pairs_tf_mirror]: Compiling with ROS Timers. This can cause high CPU load in runtime.")
+endif()
+
+set(DEPENDENCIES
   pairs_lib
-  nodelet
-  roscpp
+  pairs_msgs
+  pairs_modules_msgs
+  nav_msgs
+  rclcpp
+  rclcpp_components
   tf2
   tf2_ros
-  nav_msgs
-  )
+  tf2_sensor_msgs
+)
 
-find_package(Eigen3 REQUIRED)
-set(Eigen_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS})
-set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
+foreach(DEP IN LISTS DEPENDENCIES)
+  find_package(${DEP} REQUIRED)
+endforeach()
 
-find_package(catkin REQUIRED COMPONENTS
-  ${CATKIN_DEPENDENCIES}
-  )
+# set the compile options to show code warnings
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra)
+endif()
 
 set(LIBRARIES
   PairsTfMirror_TfMirror
-  )
+)
 
-catkin_package(
-  LIBRARIES ${LIBRARIES}
-  CATKIN_DEPENDS ${CATKIN_DEPENDENCIES}
-  DEPENDS Eigen
-  )
-
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-  )
-
-add_library(PairsTfMirror_TfMirror
+add_library(PairsTfMirror_TfMirror SHARED
   src/tf_mirror.cpp
-  )
+)
 
-add_dependencies(PairsTfMirror_TfMirror
-  ${catkin_EXPORTED_TARGETS}
-  )
+ament_target_dependencies(PairsTfMirror_TfMirror
+  ${DEPENDENCIES}
+)
 
-target_link_libraries(PairsTfMirror_TfMirror
-  ${catkin_LIBRARIES}
-  )
+target_include_directories(PairsTfMirror_TfMirror
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+rclcpp_components_register_node(PairsTfMirror_TfMirror
+  PLUGIN "pairs_tf_mirror::TfMirror"
+  EXECUTABLE tf_mirror_node
+)
 
 ## --------------------------------------------------------------
 ## |                           Install                          |
 ## --------------------------------------------------------------
 
-install(TARGETS ${LIBRARIES}
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
-  )
+install(TARGETS ${LIBRARIES} EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
 
 install(DIRECTORY launch config
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-  )
+  DESTINATION share/${PROJECT_NAME}
+)
 
-install(FILES nodelets.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-  )
+ament_export_targets(
+  export_${PROJECT_NAME} HAS_LIBRARY_TARGET
+)
+
+ament_export_dependencies(
+  ${DEPENDENCIES}
+)
+
+ament_package()

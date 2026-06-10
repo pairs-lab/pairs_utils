@@ -1,5 +1,0 @@
-<library path="lib/libPairsUtils_PAIRSTFConnector">
-  <class name="pairs_tf_connector/TFConnector" type="pairs_tf_connector::TFConnector" base_class_type="nodelet::Nodelet">
-    <description>TFConnector nodelet</description>
-  </class>
-</library>
