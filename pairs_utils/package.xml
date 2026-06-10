@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<package format="2">
+
+  <name>pairs_utils</name>
+  <version>1.0.0</version>
+  <description>The PAIRS Utils metapackage</description>
+
+  <maintainer email="canhthanh@vnu.edu.vn">Thanh Nguyen Canh</maintainer>
+  <author email="canhthanh@vnu.edu.vn">Thanh Nguyen Canh</author>
+
+  <license>BSD 3-Clause</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>cmake_modules</depend>
+
+  <depend>pairs_camera_republisher</depend>
+  <depend>pairs_circle_flier</depend>
+  <depend>pairs_euler_counter_example</depend>
+  <depend>pairs_multireconfigure</depend>
+  <depend>pairs_sensor_info</depend>
+  <depend>pairs_tf_connector</depend>
+  <depend>pairs_tf_estimator</depend>
+  <depend>pairs_tf_mirror</depend>
+  <depend>pairs_tf_reconfigure</depend>
+  <depend>pairs_throw_activation</depend>
+
+  <depend>pairs_lib</depend>
+  <depend>pairs_msgs</depend>
+  <depend>pairs_modules_msgs</depend>
+
+</package>

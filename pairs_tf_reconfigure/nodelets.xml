@@ -1,0 +1,5 @@
+<library path="lib/libPairsUtils_PAIRSTFReconfigure">
+  <class name="pairs_tf_reconfigure/TfReconfigure" type="pairs_tf_reconfigure::TfReconfigure" base_class_type="nodelet::Nodelet">
+    <description>TfReconfigure nodelet</description>
+  </class>
+</library>

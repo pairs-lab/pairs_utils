@@ -1,0 +1,11 @@
+<library path="lib/libPairsCameraRepublisher_FrameIdChanger">
+  <class name="pairs_camera_republisher/FrameIdChanger" type="pairs_camera_republisher::FrameIdChanger" base_class_type="nodelet::Nodelet">
+    <description>FrameIdChanger nodelet</description>
+  </class>
+</library>
+
+<library path="lib/libPairsCameraRepublisher_Throttle">
+  <class name="pairs_camera_republisher/Throttle" type="pairs_camera_republisher::Throttle" base_class_type="nodelet::Nodelet">
+    <description>Camera Throttle nodelet</description>
+  </class>
+</library>

@@ -1,0 +1,5 @@
+<library path="lib/libPairsThrowActivation_Activation">
+  <class name="pairs_throw_activation/ThrowActivation" type="pairs_throw_activation::ThrowActivation" base_class_type="nodelet::Nodelet">
+    <description>PAIRS Throw Activation</description>
+  </class>
+</library>

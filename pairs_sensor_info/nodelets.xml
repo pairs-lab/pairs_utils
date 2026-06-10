@@ -1,0 +1,5 @@
+<library path="lib/libPairsSensorInfo_SensorInfo">
+  <class name="pairs_sensor_info/SensorInfo" type="pairs_sensor_info::SensorInfo" base_class_type="nodelet::Nodelet">
+    <description>SensorInfo nodelet</description>
+  </class>
+</library>
