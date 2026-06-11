@@ -55,7 +55,12 @@ attach=true
 ### DO NOT MODIFY BELOW ###
 ###########################
 
-export TMUX_BIN="/usr/bin/tmux -L pairs -f /etc/ctu-pairs/tmux.conf"
+# use the system-wide PAIRS tmux config if it is installed
+if [ -f /etc/ctu-pairs/tmux.conf ]; then
+  export TMUX_BIN="/usr/bin/tmux -L pairs -f /etc/ctu-pairs/tmux.conf"
+else
+  export TMUX_BIN="/usr/bin/tmux -L pairs"
+fi
 
 # find the session
 FOUND=$( $TMUX_BIN ls | grep $SESSION_NAME )
@@ -126,7 +131,7 @@ done
 # send commands
 for ((i=0; i < ${#cmds[*]}; i++));
 do
-  $TMUX_BIN send-keys -t $SESSION_NAME:$(($i+1)) "cd $SCRIPTPATH;${pre_input};${cmds[$i]}"
+  $TMUX_BIN send-keys -t $SESSION_NAME:$(($i+1)) "cd $SCRIPTPATH;${pre_input};${cmds[$i]}"
 done
 
 # identify the index of the init window
