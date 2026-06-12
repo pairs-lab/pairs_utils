@@ -1,7 +1,7 @@
 # pairs_utils
 
 Part of the **PAIRS UAV system** — a faithful rename-port of the CTU-MRS
-`mrs_utils` package.
+`pairs_utils` package.
 
 ## Branches
 - `ros1` — ROS 1 Noetic (catkin)
@@ -13,7 +13,7 @@ sudo apt install ros-noetic-pairs-utils
 ```
 
 ## License
-BSD 3-Clause. Derived from the CTU-MRS `mrs_utils` package; the original
+BSD 3-Clause. Derived from the CTU-MRS `pairs_utils` package; the original
 copyright is retained in [LICENSE](LICENSE).
 
 Maintainer: Thanh Nguyen Canh <canhthanh@vnu.edu.vn>
