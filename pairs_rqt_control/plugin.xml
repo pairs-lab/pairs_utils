@@ -1,0 +1,16 @@
+<library path="src">
+  <class name="PAIRS UAV Control"
+         type="pairs_rqt_control.control_panel.PairsControlPanel"
+         base_class_type="rqt_gui_py::Plugin">
+    <description>
+      A button panel to arm, take off, fly (goto), hover, and land a PAIRS UAV.
+    </description>
+    <qtgui>
+      <group>
+        <label>PAIRS</label>
+      </group>
+      <label>PAIRS UAV Control</label>
+      <statustip>Control a PAIRS UAV from a button panel.</statustip>
+    </qtgui>
+  </class>
+</library>

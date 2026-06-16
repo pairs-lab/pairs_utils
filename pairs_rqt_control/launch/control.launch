@@ -1,0 +1,11 @@
+<launch>
+
+  <!-- Open the PAIRS UAV Control panel (standalone rqt window). -->
+  <arg name="UAV_NAME" default="$(optenv UAV_NAME uav1)"/>
+
+  <node name="pairs_rqt_control" pkg="rqt_gui" type="rqt_gui"
+        args="--standalone pairs_rqt_control" output="screen">
+    <env name="UAV_NAME" value="$(arg UAV_NAME)"/>
+  </node>
+
+</launch>

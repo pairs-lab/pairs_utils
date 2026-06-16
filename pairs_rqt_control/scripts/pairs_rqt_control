@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+"""Launch the PAIRS UAV Control panel as a standalone rqt window."""
+import sys
+
+from rqt_gui.main import Main
+
+
+def main():
+    main = Main()
+    return main.main(sys.argv, standalone='pairs_rqt_control')
+
+
+if __name__ == '__main__':
+    sys.exit(main())
