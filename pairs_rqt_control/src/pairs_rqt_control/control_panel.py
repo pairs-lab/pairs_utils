@@ -157,27 +157,46 @@ class PairsControlPanel(Plugin):
                 self._spin['z'].value(), self._spin['heading'].value()]
         self._call(srv, Vec4, goal)
 
-    # One-click takeoff: arm -> offboard -> takeoff. PX4 drops OFFBOARD on the
-    # ground unless takeoff follows within ~1 s, so the steps are chained with
-    # short timers (non-blocking) and the takeoff retries, re-toggling offboard.
+    # One-click takeoff: arm -> offboard -> takeoff, chained with non-blocking
+    # timers. PX4 SITL often rejects the first arm command(s) (estimator/home
+    # still converging), so arming is retried until it sticks; PX4 also drops
+    # OFFBOARD on the ground unless takeoff follows within ~1 s, so offboard and
+    # takeoff are issued back-to-back and the whole tail retries on failure.
     def _takeoff_sequence(self):
-        self._to_tries = 0
+        self._tk_arm_tries = 0
+        self._tk_loop_tries = 0
         self._set_result('takeoff: arming...', True)
-        self._call('hw_api/arming', SetBool, True)
-        QTimer.singleShot(1500, self._to_offboard)
+        self._tk_arm()
 
-    def _to_offboard(self):
-        self._set_result('takeoff: switching to offboard...', True)
+    def _tk_arm(self):
+        if (self._hw is not None and self._hw.armed) or self._call('hw_api/arming', SetBool, True):
+            QTimer.singleShot(1500, self._tk_output)
+        elif self._tk_arm_tries < 15:
+            self._tk_arm_tries += 1
+            self._set_result('takeoff: arming (attempt %d)...' % (self._tk_arm_tries + 1), True)
+            QTimer.singleShot(1000, self._tk_arm)
+        else:
+            self._set_result('takeoff: could not arm after %d attempts' % self._tk_arm_tries, False)
+
+    def _tk_output(self):
+        # enable the control_manager output (as automatic_start does) so it starts
+        # streaming setpoints; without this PX4 drops OFFBOARD and takeoff fails.
+        self._set_result('takeoff: enabling control output...', True)
+        self._call('control_manager/toggle_output', SetBool, True)
+        QTimer.singleShot(600, self._tk_offboard)
+
+    def _tk_offboard(self):
+        self._set_result('takeoff: offboard + takeoff...', True)
         self._call('hw_api/offboard', Trigger)
-        QTimer.singleShot(600, self._to_takeoff)
+        QTimer.singleShot(700, self._tk_takeoff)
 
-    def _to_takeoff(self):
+    def _tk_takeoff(self):
         if self._call('uav_manager/takeoff', Trigger):
             return
-        if self._to_tries < 3:
-            self._to_tries += 1
-            self._set_result('takeoff: retry %d (re-toggling offboard)...' % self._to_tries, True)
-            QTimer.singleShot(600, self._to_offboard)
+        # not armed / not offboard / transient — restart the sequence a few times
+        if self._tk_loop_tries < 4:
+            self._tk_loop_tries += 1
+            QTimer.singleShot(700, self._tk_arm)
 
     # ------------------------------------------------------------------- UI
 

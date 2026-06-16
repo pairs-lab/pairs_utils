@@ -45,13 +45,14 @@ The bottom line shows the result of the last action (green = OK, red = failed).
 
 ### Why a one-click takeoff?
 
-PX4 only **stays** in OFFBOARD if takeoff follows within about a second; on the
-ground it drops back out almost immediately. So pressing **Offboard** and then
-**Takeoff** as two separate clicks usually fails with *"UAV not in offboard
-mode"* — by the time you click Takeoff, offboard has already dropped. The
-**Takeoff** button avoids this by doing `arm → offboard → takeoff` back-to-back
-(and re-toggling offboard a few times if needed). The individual **Arm** /
-**Offboard** buttons are kept for manual/advanced use.
+Taking off needs a specific sequence (the same one `automatic_start` runs):
+**arm → enable the control output → offboard → takeoff**, back-to-back. The
+control-output step makes the controller start streaming setpoints; without it
+PX4 immediately drops OFFBOARD and takeoff fails with *"UAV not in offboard
+mode"*. PX4 SITL also often rejects the first arm command, so it has to be
+retried. The **Takeoff** button does all of this for you (arm-retry, enable
+output, offboard, takeoff, and a couple of retries on failure). The individual
+**Arm** / **Offboard** buttons are kept for manual/advanced use.
 
 ## License
 BSD 3-Clause. See the repository [LICENSE](../LICENSE).
