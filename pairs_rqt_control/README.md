@@ -7,6 +7,9 @@ kr_autonomous_flight rqt panel but wired to the PAIRS service interface.
 ## What it does
 
 - **Flight**: `Arm` · `Disarm` · `Offboard` · `Takeoff` · `Land` · `Land Home` · `Hover` · `E-Land`
+  - **`Takeoff` is one click** — it runs the whole `arm → offboard → takeoff`
+    sequence with the right timing (see the note below), so you don't have to
+    chain the buttons yourself.
 - **Go to**: `x y z heading` fields with **Go To** (world frame) and **Go To (relative)**
 - **Live status** line: armed / offboard / active tracker / flying
 - a **UAV** field at the top so one panel can drive any namespace (`uav1`, `uav2`, …)
@@ -18,7 +21,8 @@ It calls the standard services: `hw_api/arming` (`std_srvs/SetBool`),
 
 ## Run
 
-Standalone window:
+In the Gazebo simulation it already opens automatically in the **`gui`** tmux
+window of the single-drone sessions. To open it yourself:
 ```bash
 rosrun pairs_rqt_control pairs_rqt_control
 # or
@@ -29,9 +33,25 @@ Or load it inside the full rqt: `rqt` → **Plugins ▸ PAIRS ▸ PAIRS UAV Cont
 The panel reads `$UAV_NAME` for its default namespace; change the **UAV** field to
 control a different drone.
 
-## Typical flow
-`Arm` → `Offboard` → `Takeoff`, wait until the status shows `tracker=MpcTracker`
-and `flying=Y`, then set `x y z heading` and press **Go To**, or `Hover` / `Land`.
+## How to fly
+
+1. Press **Takeoff** — one click arms, switches to offboard, and takes off.
+   Watch the status line until it reads `tracker=MpcTracker` and `flying=Y`.
+2. Type a target into `x y z heading` and press **Go To** (world frame) or
+   **Go To (relative)**. **Hover** stops and holds.
+3. Press **Land** (in place) or **Land Home** (return to the takeoff point).
+
+The bottom line shows the result of the last action (green = OK, red = failed).
+
+### Why a one-click takeoff?
+
+PX4 only **stays** in OFFBOARD if takeoff follows within about a second; on the
+ground it drops back out almost immediately. So pressing **Offboard** and then
+**Takeoff** as two separate clicks usually fails with *"UAV not in offboard
+mode"* — by the time you click Takeoff, offboard has already dropped. The
+**Takeoff** button avoids this by doing `arm → offboard → takeoff` back-to-back
+(and re-toggling offboard a few times if needed). The individual **Arm** /
+**Offboard** buttons are kept for manual/advanced use.
 
 ## License
 BSD 3-Clause. See the repository [LICENSE](../LICENSE).

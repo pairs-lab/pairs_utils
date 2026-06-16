@@ -63,7 +63,7 @@ class PairsControlPanel(Plugin):
             ('Arm',       lambda: self._call('hw_api/arming', SetBool, True)),
             ('Disarm',    lambda: self._call('hw_api/arming', SetBool, False)),
             ('Offboard',  lambda: self._call('hw_api/offboard', Trigger)),
-            ('Takeoff',   lambda: self._call('uav_manager/takeoff', Trigger)),
+            ('Takeoff',   self._takeoff_sequence),
             ('Land',      lambda: self._call('uav_manager/land', Trigger)),
             ('Land Home', lambda: self._call('uav_manager/land_home', Trigger)),
             ('Hover',     lambda: self._call('control_manager/hover', Trigger)),
@@ -147,13 +147,37 @@ class PairsControlPanel(Plugin):
             ok = bool(getattr(resp, 'success', True))
             self._set_result('%s -> %s %s' % (srv, 'OK' if ok else 'FAIL',
                                               getattr(resp, 'message', '')), ok)
+            return ok
         except Exception as e:  # rospy.ServiceException, ROSException (timeout), etc.
             self._set_result('%s -> ERROR: %s' % (srv, e), False)
+            return False
 
     def _goto(self, srv):
         goal = [self._spin['x'].value(), self._spin['y'].value(),
                 self._spin['z'].value(), self._spin['heading'].value()]
         self._call(srv, Vec4, goal)
+
+    # One-click takeoff: arm -> offboard -> takeoff. PX4 drops OFFBOARD on the
+    # ground unless takeoff follows within ~1 s, so the steps are chained with
+    # short timers (non-blocking) and the takeoff retries, re-toggling offboard.
+    def _takeoff_sequence(self):
+        self._to_tries = 0
+        self._set_result('takeoff: arming...', True)
+        self._call('hw_api/arming', SetBool, True)
+        QTimer.singleShot(1500, self._to_offboard)
+
+    def _to_offboard(self):
+        self._set_result('takeoff: switching to offboard...', True)
+        self._call('hw_api/offboard', Trigger)
+        QTimer.singleShot(600, self._to_takeoff)
+
+    def _to_takeoff(self):
+        if self._call('uav_manager/takeoff', Trigger):
+            return
+        if self._to_tries < 3:
+            self._to_tries += 1
+            self._set_result('takeoff: retry %d (re-toggling offboard)...' % self._to_tries, True)
+            QTimer.singleShot(600, self._to_offboard)
 
     # ------------------------------------------------------------------- UI
 
